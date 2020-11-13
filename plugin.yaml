@@ -1,0 +1,6 @@
+plugin:
+    name: 'voilaah.omisemall::lang.plugin.name'
+    description: 'voilaah.omisemall::lang.plugin.description'
+    author: Voilaah
+    icon: oc-icon-credit-card
+    homepage: ''
