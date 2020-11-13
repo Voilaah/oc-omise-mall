@@ -1,90 +1,239 @@
-<div class="mall-form-control">
-    <label class="mall-label">{{ 'offline.mall::frontend.payment_method.card_info' | trans }}</label>
-    <div id="card-element" class="mall-input mall-input--width-limited">
-        {{ 'offline.mall::frontend.please_wait' | trans }}
+<div class="_mall-form-control">
+    <div id="card-element" class="_mall-input mall-input--width-limited">
+        {# <div class="p-8 my-4 bg-white rounded-lg shadow"> #}
+            {# <div class="flex items-center mb-4">
+                <div class="px-3 py-2 mr-2 font-bold border-2 rounded-full border-blue text-blue">1</div>
+                <h2 class="text-lg">Your Payment Information</h2>
+            </div> #}
+            <div class="w-full">
+                {# <label for="payment" class="block mb-2 text-sm">Credit Card</label> #}
+                <label class="block mall-label">{{ 'voilaah.omisemall::frontend.payment_method.card_name' | trans }}</label>
+                <div class="flex">
+                    <input id="omise_card_name" name="omise_card_name" tabindex="0" maxlength="255" aria-label="" type="text" id="payment" class="flex-1 w-full p-3 text-sm rounded-l bg-grey-lighter text-grey-darkest focus:outline-none" placeholder="{{ 'voilaah.omisemall::frontend.payment_method.card_fullname' | trans }}">
+                </div>
+                <label class="block mt-4 mall-label">{{ 'voilaah.omisemall::frontend.payment_method.card_info' | trans }}</label>
+                <div class="grid grid-cols-12 gap-0 flex_">
+                    <input id="omise_card_number" name="omise_card_number" tabindex="1" autocorrect="off" autocomplete="cc-number" spellcheck="false" inputmode="numeric" aria-label="Credit or debit card number" type="text" id="payment" class="col-span-8 p-3 text-sm rounded-l _w-4/6 bg-grey-lighter text-grey-darkest focus:outline-none" placeholder="{{ 'voilaah.omisemall::frontend.payment_method.card_number' | trans }}">
+                    <input id="omise_card_expiration_month" name="omise_card_expiration_month" tabindex="2" maxlength="2" autocomplete="cc-exp" autocorrect="off" spellcheck="false" inputmode="numeric" aria-label="Credit or debit card expiration date" type="text" id="payment" class="col-span-1 py-3 text-sm _w-1/6 bg-grey-lighter text-grey-darkest focus:outline-none" placeholder="{{ 'voilaah.omisemall::frontend.payment_method.card_expiry_month' | trans }}">
+                    <input id="omise_card_expiration_year" name="omise_card_expiration_year" tabindex="3" maxlength="2" autocomplete="cc-exp" autocorrect="off" spellcheck="false" inputmode="numeric" aria-label="Credit or debit card expiration date" type="text" id="payment" class="col-span-1 py-3 text-sm _w-1/6 bg-grey-lighter text-grey-darkest focus:outline-none" placeholder="{{ 'voilaah.omisemall::frontend.payment_method.card_expiry_year' | trans }}">
+                    <input id="omise_card_security_code" name="omise_card_security_code" tabindex="4" maxlength="3" aria-label="" type="text" id="payment" class="col-span-2 py-3 text-sm text-center rounded-r _w-1/6 bg-grey-lighter text-grey-darkest focus:outline-none" placeholder="{{ 'voilaah.omisemall::frontend.payment_method.card_cvc' | trans }}">
+                </div>
+            </div>
+        {# </div> #}
     </div>
     <div id="card-errors" data-validate-for="stripeToken"></div>
 
-    <input type="hidden" class="js-mall-checkout-trigger" name="payment_data[token]" value="" id="omise-token">
+    <input type="hidden" class="js-mall-checkout-trigger" name="payment_data[token]" value="" id="omise_token">
 </div>
 
 <script>
+    /*function cc_format(ccid,ctid) {*/
+    function cc_format(ccNumString) {
+        // supports Amex, Master Card, Visa, and Discover
+        // parameter 1 ccid= id of credit card number field
+        // parameter 2 ctid= id of credit card type field
+
+        /*var ccNumString=document.getElementById(ccid).value;*/
+        var ccNumString=ccNumString.replace(/[^0-9]/g, '');
+        // mc, starts with - 51 to 55
+        // v, starts with - 4
+        // dsc, starts with 6011, 622126-622925, 644-649, 65
+        // amex, starts with 34 or 37
+        var typeCheck = ccNumString.substring(0, 2);
+        var cType='';
+        var block1='';
+        var block2='';
+        var block3='';
+        var block4='';
+        var formatted='';
+
+        if  (typeCheck.length==2) {
+            typeCheck=parseInt(typeCheck);
+            if (typeCheck >= 40 && typeCheck <= 49) {
+                cType='Visa';
+            }
+            else if (typeCheck >= 51 && typeCheck <= 55) {
+                cType='Master Card';
+            }
+            else if ((typeCheck >= 60 && typeCheck <= 62) || (typeCheck == 64) || (typeCheck == 65)) {
+                cType='Discover';
+            }
+            else if (typeCheck==34 || typeCheck==37) {
+                cType='American Express';
+            }
+            else {
+                cType='Invalid';
+            }
+        }
+
+        // all support card types have a 4 digit firt block
+        block1 = ccNumString.substring(0, 4);
+        if (block1.length==4) {
+            block1=block1 + ' ';
+        }
+
+        if (cType == 'Visa' || cType == 'Master Card' || cType == 'Discover') {
+            // for 4X4 cards
+            block2 = ccNumString.substring(4, 8);
+            if (block2.length==4) {
+                block2=block2 + ' ';
+            }
+            block3 = ccNumString.substring(8, 12);
+            if (block3.length==4) {
+                block3=block3 + ' ';
+            }
+            block4 = ccNumString.substring(12, 16);
+        }
+        else if (cType == 'American Express') {
+            // for Amex cards
+            block2 =  ccNumString.substring(4, 10);
+            if (block2.length==6) {
+                block2=block2 + ' ';
+            }
+            block3 =  ccNumString.substring(10, 15);
+            block4='';
+        }
+        else if (cType == 'Invalid') {
+            // for Amex cards
+            block1 =  typeCheck;
+            block2='';
+            block3='';
+            block4='';
+            alert('Invalid Card Number');
+        }
+
+        formatted=block1 + block2 + block3 + block4;
+        /*document.getElementById(ccid).value=formatted;
+        document.getElementById(ctid).value=cType;*/
+        /*console.log(formatted, cType);*/
+        return formatted;
+    }
+
     $(function () {
 
-        {# Lazy load stripe.js to ensure everything works when changing the payment method. #}
+        var omise_params = {
+            'key': '{{ cart.payment_method.settings.omise_test_mode ? cart.payment_method.settings.test_public_key : cart.payment_method.settings.public_key }}',
+        };
+
+        {# Lazy load omise.js to ensure everything works when changing the payment method. #}
         var s = document.createElement('script');
         s.type = 'text/javascript';
-        s.src = 'https://js.stripe.com/v3/';
-        s.onload = initStripe;
+        s.src = 'https://cdn.omise.co/omise.js';
+        s.onload = initOmise;
 
         document.head.appendChild(s)
 
-        function initStripe () {
-            var stripe = Stripe('{{ cart.payment_method.settings.stripe_publishable_key }}');
-            var elements = stripe.elements();
+        function initOmise () {
 
-            var card = elements.create('card');
-            card.mount('#card-element');
-
-            card.addEventListener('change', function (event) {
-                var displayError = document.getElementById('card-errors');
-                if (event.error) {
-                    displayError.textContent = event.error.message;
-                } else {
-                    displayError.textContent = '';
-                }
-            });
-
-            window.Mall.Callbacks.Checkout.Stripe = function () {
-                return new Promise(function (resolve, reject) {
-                        generateToken().then(resolve).catch(reject)
-                    }
-                )
+            document.getElementById('omise_card_number').oninput = function() {
+                this.value = cc_format(this.value)
             }
 
-            var form = document.getElementById('mall-payment-form');
-            if (form) {
-                form.addEventListener('submit', generateToken);
-            }
+            if(Omise){
+				Omise.setPublicKey(omise_params.key);
 
-            var input = document.getElementById('stripe-token')
+                var card = document.getElementById('card-element');
 
-            function generateToken (event) {
-                if (event) {
-                    event.preventDefault();
-                }
-                var errorElement = document.getElementById('card-errors');
-                errorElement.classList.remove('visible')
-                if (form) {
-                    var submit = form.querySelector('[type="submit"]')
-                    if (submit) {
-                        submit.classList.add('oc-loading')
-                        submit.disabled = true
+                card.addEventListener('change', function (event) {
+                    var displayError = document.getElementById('card-errors');
+                    if (event.error) {
+                        displayError.textContent = event.error.message;
+                    } else {
+                        displayError.textContent = '';
                     }
-                }
-                return new Promise(function (resolve, reject) {
-                    stripe.createToken(card).then(function (result) {
-                        if (result.error) {
-                            errorElement.textContent = result.error.message;
-                            errorElement.classList.add('visible')
-                            if (submit) {
-                                submit.classList.remove('oc-loading')
-                                submit.disabled = false
-                            }
-                            reject(result.error.message)
-                        } else {
-                            stripeTokenHandler(result.token);
-                            resolve()
+                });
+
+                window.Mall.Callbacks.Checkout.Stripe = function () {
+                    return new Promise(function (resolve, reject) {
+                            generateToken().then(resolve).catch(reject)
                         }
-                    });
-                })
-            }
+                    )
+                }
 
-            function stripeTokenHandler (token) {
-                input.value = token.id
-                var $form = $('#mall-payment-form')
-                if ($form.length) {
-                    $form.request('onSubmit')
+                var form = document.getElementById('mall-payment-form');
+                if (form) {
+                    form.addEventListener('submit', generateToken);
+                }
+
+                var input = document.getElementById('omise_token')
+
+                function generateToken (event) {
+                    if (event) {
+                        event.preventDefault();
+                    }
+                    var errorElement = document.getElementById('card-errors');
+                    errorElement.classList.remove('visible')
+                    if (form) {
+                        var submit = form.querySelector('[type="submit"]')
+                        if (submit) {
+                            submit.classList.add('oc-loading')
+                            submit.disabled = true
+                        }
+                    }
+                    let errors            = [],
+                        omise_card        = {},
+                        omise_card_fields = {
+                            'name'             : $( '#omise_card_name' ),
+                            'number'           : $( '#omise_card_number' ),
+                            'expiration_month' : $( '#omise_card_expiration_month' ),
+                            'expiration_year'  : $( '#omise_card_expiration_year' ),
+                            'security_code'    : $( '#omise_card_security_code' )
+                        };
+
+                    $.each( omise_card_fields, function( index, field ) {
+                        omise_card[ index ] = field.val();
+                        if ( "" === omise_card[ index ] ) {
+                            errors.push( omise_params[ 'required_card_' + index ] );
+                        }
+                    } );
+                    return new Promise(function (resolve, reject) {
+                        Omise.createToken("card", omise_card, function (statusCode, response) {
+                            if (statusCode == 200) {
+                                console.log('it works ' + response.id );
+                                /*input = response.id;*/
+                                omiseTokenHandler(response);
+
+                            } else {
+                                console.log('it does not work ' );
+
+                                if ( response.object && 'error' === response.object && 'invalid_card' === response.code ) {
+                                    console.log( omise_params.invalid_card + "<br/>" + response.message );
+                                } else if(response.message){
+                                    console.log( omise_params.cannot_create_token + "<br/>" + response.message );
+                                }else if(response.responseJSON && response.responseJSON.message){
+                                    console.log( omise_params.cannot_create_token + "<br/>" + response.responseJSON.message );
+                                }else if(response.status==0){
+                                    console.log( omise_params.cannot_create_token + "<br/>" + omise_params.cannot_connect_api + omise_params.retry_checkout );
+                                }else {
+                                    console.log( omise_params.cannot_create_token + "<br/>" + omise_params.retry_checkout );
+                                }
+
+                            };
+                        });
+                        /*stripe.createToken(card).then(function (result) {
+
+                            if (result.error) {
+                                errorElement.textContent = result.error.message;
+                                errorElement.classList.add('visible')
+                                if (submit) {
+                                    submit.classList.remove('oc-loading')
+                                    submit.disabled = false
+                                }
+                                reject(result.error.message)
+                            } else {
+                                stripeTokenHandler(result.token);
+                                resolve()
+                            }
+                        });*/
+                    })
+                }
+
+                function omiseTokenHandler(token) {
+                    input.value = token.id
+                    var $form = $('#mall-payment-form')
+                    if ($form.length) {
+                        $form.request('onSubmit')
+                    }
                 }
             }
         }

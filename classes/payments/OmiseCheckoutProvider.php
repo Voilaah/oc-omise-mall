@@ -138,9 +138,22 @@ class OmiseCheckoutProvider extends OverridePaymentProvider
     {
         $gateway = Omnipay::create('Omise');
 
-        $gateway->setApiKey(decrypt(PaymentGatewaySettings::get('secret_key')));
+        $secret_key = $this->isTestMode() ? PaymentGatewaySettings::get('test_secret_key') : PaymentGatewaySettings::get('secret_key') ;
+
+        $gateway->setApiKey(decrypt($secret_key));
 
         return $gateway;
+    }
+
+
+    /**
+     * return if we are in test mode or live mode
+     *
+     * @return boolean
+     */
+    private function isTestMode(): boolean
+    {
+        return (bool)PaymentGatewaySettings::get('omise_test_mode');
     }
 
 
@@ -218,24 +231,52 @@ class OmiseCheckoutProvider extends OverridePaymentProvider
     public function settings(): array
     {
         return [
-            'endpointUrl' => [
-                'label'   => Lang::get('voilaah.omisemall::lang.settings_checkout.endpoint_url_label'),
+            'omise_test_mode' => [
+                'label'   => 'voilaah.omisemall::lang.settings_checkout.test_mode',
+                'comment' => 'voilaah.omisemall::lang.settings_checkout.test_mode_comment',
                 'span'    => 'left',
-                'type'    => 'partial',
-                'path'    => '$/voilaah/omisemall/view/_endpoint_checkout_url.htm'
+                'type'    => 'switch',
+            ],
+            'test_public_key_section' => [
+                'label'   => Lang::get('voilaah.omisemall::lang.settings_checkout.test_keys'),
+                'span'    => 'left',
+                'type'    => 'section',
+            ],
+            'live_public_key_section' => [
+                'label'   => Lang::get('voilaah.omisemall::lang.settings_checkout.live_keys'),
+                'span'    => 'auto',
+                'type'    => 'section',
+            ],
+            'test_public_key' => [
+                'label'   => Lang::get('voilaah.omisemall::lang.settings_checkout.test_public_key'),
+                'comment' => Lang::get('voilaah.omisemall::lang.settings_checkout.test_public_key_label'),
+                'span'    => 'left',
+                'type'    => 'text',
             ],
             'public_key' => [
                 'label'   => Lang::get('voilaah.omisemall::lang.settings_checkout.public_key'),
                 'comment' => Lang::get('voilaah.omisemall::lang.settings_checkout.public_key_label'),
-                'span'    => 'left',
+                'span'    => 'auto',
+                'type'    => 'text',
+            ],
+            'test_secret_key' => [
+                'label'   => Lang::get('voilaah.omisemall::lang.settings_checkout.test_secret_key'),
+                'comment' => Lang::get('voilaah.omisemall::lang.settings_checkout.test_secret_key_label'),
+                'span'    => 'auto',
                 'type'    => 'text',
             ],
             'secret_key' => [
                 'label'   => Lang::get('voilaah.omisemall::lang.settings_checkout.secret_key'),
                 'comment' => Lang::get('voilaah.omisemall::lang.settings_checkout.secret_key_label'),
-                'span'    => 'left',
+                'span'    => 'auto',
                 'type'    => 'text',
             ],
+            'endpointUrl' => [
+                'label'   => Lang::get('voilaah.omisemall::lang.settings_checkout.endpoint_url_label'),
+                'span'    => 'left',
+                'type'    => 'partial',
+                'path'    => '$/voilaah/omisemall/view/_endpoint_checkout_url.htm'
+            ]
         ];
     }
 
@@ -250,7 +291,7 @@ class OmiseCheckoutProvider extends OverridePaymentProvider
      */
     public function encryptedSettings(): array
     {
-        return ['secret_key'];
+        return [ 'test_secret_key', 'secret_key'];
     }
 
 }
