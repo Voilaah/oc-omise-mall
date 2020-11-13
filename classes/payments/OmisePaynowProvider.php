@@ -1,8 +1,7 @@
 <?php
 
-namespace Voilaah\OmiseMall\Classes;
+namespace Voilaah\OmiseMall\Classes\Payments;
 
-use OFFLINE\Mall\Classes\Payments\PaymentProvider;
 use OFFLINE\Mall\Classes\Payments\PaymentResult;
 use OFFLINE\Mall\Models\PaymentGatewaySettings;
 use OFFLINE\Mall\Models\OrderState;
@@ -13,7 +12,7 @@ use Session;
 use Lang;
 
 
-class OmisePaynowProvider extends PaymentProvider
+class OmisePaynowProvider extends OverridePaymentProvider
 {
     /**
      * The order that is being paid.

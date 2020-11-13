@@ -1,8 +1,8 @@
 <?php
 
 use Illuminate\Http\Request;
-use Voilaah\OmiseMall\Classes\OmisePaynowProvider;
-use Voilaah\OmiseMall\Classes\OmiseCheckoutProvider;
+use Voilaah\OmiseMall\Classes\Payments\OmisePaynowProvider;
+use Voilaah\OmiseMall\Classes\Payments\OmiseCheckoutProvider;
 
 Route::post('/omise-checkout', function (Request $request) {
 

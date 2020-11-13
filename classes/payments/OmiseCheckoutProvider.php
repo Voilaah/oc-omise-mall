@@ -1,6 +1,5 @@
-<?php namespace Voilaah\OmiseMall\Classes;
+<?php namespace Voilaah\OmiseMall\Classes\Payments;
 
-use OFFLINE\Mall\Classes\Payments\PaymentProvider;
 use OFFLINE\Mall\Classes\Payments\PaymentResult;
 use OFFLINE\Mall\Models\PaymentGatewaySettings;
 use OFFLINE\Mall\Models\OrderState;
@@ -9,9 +8,9 @@ use Omnipay\Omnipay;
 use Throwable;
 use Session;
 use Lang;
+use Validator;
 
-
-class OmiseCheckoutProvider extends PaymentProvider
+class OmiseCheckoutProvider extends OverridePaymentProvider
 {
     /**
      * The order that is being paid.
@@ -55,6 +54,19 @@ class OmiseCheckoutProvider extends PaymentProvider
      */
     public function validate(): bool
     {
+        if (isset($this->data['use_customer_payment_method'])) {
+            return true;
+        }
+
+        $rules = [
+            'token' => 'required|size:28|regex:/tok_[0-9a-zA-z]{24}/',
+        ];
+
+        $validation = Validator::make($this->data, $rules);
+        if ($validation->fails()) {
+            throw new ValidationException($validation);
+        }
+
         return true;
     }
 
@@ -68,6 +80,41 @@ class OmiseCheckoutProvider extends PaymentProvider
     public function process(PaymentResult $result): PaymentResult
     {
         $gateway = $this->getGateway();
+
+        $response = null;
+
+        $customer        = $this->order->customer;
+
+        try {
+            $response = $gateway->purchase([
+                'amount'        => $this->order->total_in_currency,
+                'currency'      => $this->order->currency['code'],
+                'capture'       => true,
+                'returnUrl'     => $this->returnUrl(),
+                'cancelUrl'     => $this->cancelUrl(),
+                'transactionId' => uniqid('', true),
+                'description'   => Lang::get('iweb.yandexcheckoutmall::lang.messages.order_number') . $this->order->order_number,
+                'metadata'      => array(
+                    'order_id'      => $this->order->id,
+                ),
+            ])->send();
+        } catch (Throwable $e) {
+            return $result->fail([], $e);
+        }
+
+        // PayPal has to return a RedirectResponse if everything went well
+        if (!$response->isRedirect()) {
+            return $result->fail((array)$response->getData(), $response);
+        }
+
+        Session::put('mall.payment.callback', self::class);
+        Session::put('mall.omise-checkout.transactionReference', $response->getTransactionReference());
+
+        $this->setOrder($result->order);
+        $result->order->payment_transaction_id = $response->getTransactionReference();
+        $result->order->save();
+
+        return $result->redirect($response->getRedirectResponse()->getTargetUrl());
     }
 
         /**
