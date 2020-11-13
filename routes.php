@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Http\Request;
+use Voilaah\OmiseMall\Classes\OmisePaynowProvider;
 use Voilaah\OmiseMall\Classes\OmiseCheckoutProvider;
 
 Route::post('/omise-checkout', function (Request $request) {
@@ -14,7 +15,7 @@ Route::post('/omise-checkout', function (Request $request) {
 
 Route::post('/omise-paynow', function (Request $request) {
 
-    $omiseCheckout = new OmiseCheckoutProvider;
+    $omiseCheckout = new OmisePaynowProvider;
 
     $omiseCheckout->changePaymentState($request);
 
