@@ -13,15 +13,15 @@
                 </div>
                 <label class="block mt-4 mall-label">{{ 'voilaah.omisemall::frontend.payment_method.card_info' | trans }}</label>
                 <div class="grid grid-cols-12 gap-0 flex_">
-                    <input id="omise_card_number" name="omise_card_number" tabindex="1" autocorrect="off" autocomplete="cc-number" spellcheck="false" inputmode="numeric" aria-label="Credit or debit card number" type="text" id="payment" class="col-span-8 p-3 text-sm rounded-l _w-4/6 bg-grey-lighter text-grey-darkest focus:outline-none" placeholder="{{ 'voilaah.omisemall::frontend.payment_method.card_number' | trans }}">
-                    <input id="omise_card_expiration_month" name="omise_card_expiration_month" tabindex="2" maxlength="2" autocomplete="cc-exp" autocorrect="off" spellcheck="false" inputmode="numeric" aria-label="Credit or debit card expiration date" type="text" id="payment" class="col-span-1 py-3 text-sm _w-1/6 bg-grey-lighter text-grey-darkest focus:outline-none" placeholder="{{ 'voilaah.omisemall::frontend.payment_method.card_expiry_month' | trans }}">
-                    <input id="omise_card_expiration_year" name="omise_card_expiration_year" tabindex="3" maxlength="2" autocomplete="cc-exp" autocorrect="off" spellcheck="false" inputmode="numeric" aria-label="Credit or debit card expiration date" type="text" id="payment" class="col-span-1 py-3 text-sm _w-1/6 bg-grey-lighter text-grey-darkest focus:outline-none" placeholder="{{ 'voilaah.omisemall::frontend.payment_method.card_expiry_year' | trans }}">
-                    <input id="omise_card_security_code" name="omise_card_security_code" tabindex="4" maxlength="3" aria-label="" type="text" id="payment" class="col-span-2 py-3 text-sm text-center rounded-r _w-1/6 bg-grey-lighter text-grey-darkest focus:outline-none" placeholder="{{ 'voilaah.omisemall::frontend.payment_method.card_cvc' | trans }}">
+                    <input id="omise_card_number" name="omise_card_number" tabindex="0" autocorrect="off" autocomplete="cc-number" spellcheck="false" inputmode="numeric" aria-label="Credit or debit card number" type="text" id="payment" class="col-span-8 p-3 text-sm rounded-l _w-4/6 bg-grey-lighter text-grey-darkest focus:outline-none" placeholder="{{ 'voilaah.omisemall::frontend.payment_method.card_number' | trans }}">
+                    <input id="omise_card_expiration_month" name="omise_card_expiration_month" tabindex="0" maxlength="2" autocomplete="cc-exp" autocorrect="off" spellcheck="false" inputmode="numeric" aria-label="Credit or debit card expiration date" type="text" id="payment" class="col-span-1 py-3 text-sm _w-1/6 bg-grey-lighter text-grey-darkest focus:outline-none" placeholder="{{ 'voilaah.omisemall::frontend.payment_method.card_expiry_month' | trans }}">
+                    <input id="omise_card_expiration_year" name="omise_card_expiration_year" tabindex="0" maxlength="2" autocomplete="cc-exp" autocorrect="off" spellcheck="false" inputmode="numeric" aria-label="Credit or debit card expiration date" type="text" id="payment" class="col-span-1 py-3 text-sm _w-1/6 bg-grey-lighter text-grey-darkest focus:outline-none" placeholder="{{ 'voilaah.omisemall::frontend.payment_method.card_expiry_year' | trans }}">
+                    <input id="omise_card_security_code" name="omise_card_security_code" tabindex="0" maxlength="3" aria-label="" type="text" id="payment" class="col-span-2 py-3 text-sm text-center rounded-r _w-1/6 bg-grey-lighter text-grey-darkest focus:outline-none" placeholder="{{ 'voilaah.omisemall::frontend.payment_method.card_cvc' | trans }}">
                 </div>
             </div>
         {# </div> #}
     </div>
-    <div id="card-errors" data-validate-for="stripeToken"></div>
+    <div id="card-errors" data-validate-for="token"></div>
 
     <input type="hidden" class="js-mall-checkout-trigger" name="payment_data[token]" value="" id="omise_token">
 </div>
@@ -143,7 +143,7 @@
                     }
                 });
 
-                window.Mall.Callbacks.Checkout.Stripe = function () {
+                window.Mall.Callbacks.Checkout.Omise = function () {
                     return new Promise(function (resolve, reject) {
                             generateToken().then(resolve).catch(reject)
                         }
@@ -189,12 +189,13 @@
                     return new Promise(function (resolve, reject) {
                         Omise.createToken("card", omise_card, function (statusCode, response) {
                             if (statusCode == 200) {
-                                console.log('it works ' + response.id );
+                                console.log('omise it works ' + response.id );
                                 /*input = response.id;*/
                                 omiseTokenHandler(response);
+                                resolve();
 
                             } else {
-                                console.log('it does not work ' );
+                                console.log('omise it does not work ' );
 
                                 if ( response.object && 'error' === response.object && 'invalid_card' === response.code ) {
                                     console.log( omise_params.invalid_card + "<br/>" + response.message );
@@ -207,6 +208,7 @@
                                 }else {
                                     console.log( omise_params.cannot_create_token + "<br/>" + omise_params.retry_checkout );
                                 }
+                                reject(response.responseJSON.message);
 
                             };
                         });
@@ -231,8 +233,20 @@
                 function omiseTokenHandler(token) {
                     input.value = token.id
                     var $form = $('#mall-payment-form')
+
                     if ($form.length) {
-                        $form.request('onSubmit')
+                        var form = document.getElementById('mall-payment-form');
+                        var submit = form.querySelector('.oc-loading')
+
+                        $form.request('onSubmit', {
+                            error: function(res) {
+                                if (submit) {
+                                    submit.classList.remove('oc-loading')
+                                    submit.disabled = false
+                                }
+                                this.error(res)
+                            }
+                        })
                     }
                 }
             }
