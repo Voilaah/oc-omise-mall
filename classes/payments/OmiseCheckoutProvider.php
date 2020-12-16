@@ -105,13 +105,19 @@ trace_log('2. existing omise customer branch...');
                 // If the customer uses a new payment method but is already registered
                 // on Omise, just create the new card.
                 $response = $this->createCard($customer, null, $gateway);
+                $responseData = $response->getData();
+// trace_log($responseData);
                 if (!$response->isSuccessful()) {
+                // if ($responseData['card'] != $this->data['token']) {
                     return $result->fail((array)$response->getData(), $response);
                 }
-
                 // should be $response->getCustomerReference()
                 $customerReference = $this->getCustomerReference($response);
                 $cardReference     = $response->getCardReference();
+
+  trace_log('Supposedly successfully added new card ' . $this->data['token'] . ' to existing customer ' . $customerReference);
+                // $customerReference = $customer->omise_customer_id;
+                // $cardReference     = $responseData['card'];
             } else {
                 // If this is the first checkout for this customer we have to register
                 // the customer and a card on Omise.
@@ -134,6 +140,8 @@ trace_log('2. existing omise customer branch...');
             }
 
             $response = $this->charge($gateway, $customerReference, $cardReference);
+
+trace_log('successfully charged ' . $customerReference . ' with card ' . $cardReference);
 
         } catch (Throwable $e) {
             return $result->fail([], $e);
@@ -199,6 +207,7 @@ trace_log('2. existing omise customer branch...');
         return null;
     }
 
+
     /**
      * Build the Omnipay Gateway for Omise.
      *
@@ -233,15 +242,13 @@ trace_log('2. existing omise customer branch...');
             // 'source'            => $this->data['token'] ?? false,
             // 'name'              => $customer->name,
         ];
-trace_log($params);
-        // if ($customer->omise_customer_id) {
-        //     // update existing customer with a new card
-        //     return $gateway->updateCustomer($params);
-        // } else {
-
+        if ($customer->omise_customer_id) {
+            // update existing customer with a new card
+            return $gateway->updateCustomer($params)->send();
+        } else {
             // new customer new card
             return $gateway->createCard($params)->send();
-        // }
+        }
     }
 
 
@@ -256,7 +263,7 @@ trace_log($params);
     protected function createCustomer($customer, GatewayInterface $gateway)
     {
         $description = sprintf(
-            'Wunderfood Store Customer %s (%d)',
+            'Wunderfood Online Store Customer %s (#%d)',
             $customer->user->email,
             $customer->id
         );

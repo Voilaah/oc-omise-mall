@@ -23,12 +23,10 @@ abstract class OverridePaymentProvider extends \OFFLINE\Mall\Classes\Payments\Pa
     public function renderPaymentForm($cartOrOrder): string
     {
 
-
         if ('' == parent::renderPaymentForm($cartOrOrder)) {
 
-            trace_log($this->identifier());
-            trace_log($this->paymentFormPartial());
-
+            // trace_log($this->identifier());
+            // trace_log($this->paymentFormPartial());
 
             $fallback = plugins_path(sprintf(
                 'voilaah/omisemall/classes/payments/%s/%s.htm',
