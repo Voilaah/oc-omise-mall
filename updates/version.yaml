@@ -5,3 +5,5 @@
     - update_offline_mall_customer_omise_id.php
 1.0.3:
     - 'update migration removal'
+1.0.4:
+    - 'fix release'
