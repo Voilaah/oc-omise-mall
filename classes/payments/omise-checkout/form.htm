@@ -145,7 +145,7 @@
 
                 window.Mall.Callbacks.Checkout.Omise = function () {
                     return new Promise(function (resolve, reject) {
-                            generateToken().then(resolve).catch(reject)
+                        generateToken().then(resolve).catch(reject)
                         }
                     )
                 }
@@ -163,6 +163,7 @@
                     }
                     var errorElement = document.getElementById('card-errors');
                     errorElement.classList.remove('visible')
+
                     if (form) {
                         var submit = form.querySelector('[type="submit"]')
                         if (submit) {
@@ -170,6 +171,7 @@
                             submit.disabled = true
                         }
                     }
+
                     let errors            = [],
                         omise_card        = {},
                         omise_card_fields = {
@@ -189,7 +191,7 @@
                     return new Promise(function (resolve, reject) {
                         Omise.createToken("card", omise_card, function (statusCode, response) {
                             if (statusCode == 200) {
-                                console.log('omise it works ' + response.id );
+                                console.log('omise it does work ' );
                                 /*input = response.id;*/
                                 omiseTokenHandler(response);
                                 resolve();
@@ -208,7 +210,14 @@
                                 }else {
                                     console.log( omise_params.cannot_create_token + "<br/>" + omise_params.retry_checkout );
                                 }
-                                reject(response.responseJSON.message);
+
+                                if (submit) {
+                                    submit.classList.remove('oc-loading')
+                                    submit.disabled = false
+                                }
+                                console.log(response);
+                                alert(response.code + "\r\n" + response.message);
+                                reject(response.code + "\r\n" + response.message);
 
                             };
                         });

@@ -69,6 +69,7 @@ class OmiseCheckoutProvider extends OverridePaymentProvider
 
         $validation = Validator::make($this->data, $rules);
         if ($validation->fails()) {
+            trace_log($validation->getMessage());
             throw new ValidationException($validation);
         }
 
@@ -294,12 +295,13 @@ trace_log('successfully charged ' . $customerReference . ' with card ' . $cardRe
         $customer
     ) {
         return $gateway->updateCustomer([
+            'description' => 'TEST PATCH',
             'customerReference' => $customerReference,
             'email'             => $this->order->customer->user->email,
             'metadata'          => [
                 'name' => $customer->name,
                 'shipping'    => $this->getShippingInformation($customer),
-            ],
+            ]
         ])->send();
     }
 

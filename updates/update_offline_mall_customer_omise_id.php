@@ -14,8 +14,12 @@ class UpdateOfflineMallCustomerOmiseId extends Migration
 
     public function down()
     {
-        Schema::table('offline_mall_customers', function ($table) {
-            $table->dropColumn(['omise_customer_id']);
-        });
+        if (Schema::hasTable('offline_mall_customers')) {
+            Schema::table('offline_mall_customers', function ($table) {
+                if (Schema::hasColumn('offline_mall_customers', 'omise_customer_id')) {
+                    $table->dropColumn(['omise_customer_id']);
+                });
+            });
+        }
     }
 }

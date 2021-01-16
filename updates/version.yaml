@@ -3,3 +3,5 @@
 1.0.2:
     - 'Update OfflineMallCustomer with Omise Id column'
     - update_offline_mall_customer_omise_id.php
+1.0.3:
+    - 'update migration removal'
