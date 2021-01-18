@@ -2,7 +2,7 @@
 Omise Payment Gateway (Singapore) for October CMS Mall Plugin (provides CC checkout and OCBC PayNow provider)
 
 
-### Omise Ommnipay Installation
+### Omise Omnipay Installation
 
 You might need to install this package from the root of your October CMS installation.
 
@@ -11,27 +11,23 @@ COMPOSER_MEMORY_LIMIT=-1 composer require league/omnipay:^3
 COMPOSER_MEMORY_LIMIT=-1 composer require dilab/omnipay-omise
 `
 
-### Omise API Testing
+https://github.com/Spacebib/omnipay-omise
 
-#### Client Testing platform access
-
-https://dashboard.omise.co/signin
-U: charmainechoo@wunderfood.co
-P: Wunderfood2020$$$
 
 
 https://www.omise.co/api-testing
 
 These card numbers can be used to generate successful charges.
 
-Number	Brand
-4242 4242 4242 4242	Visa
-4111 1111 1111 1111	Visa
-5555 5555 5555 4444	Mastercard
-5454 5454 5454 5454	Mastercard
-3530 1113 3330 0000	JCB
-3566 1111 1111 1113	JCB
-3782 8224 6310 005	Amex
+| Number                | Brand |
+| --------------------- | -----:|
+| 4242 4242 4242 4242	| Visa       |
+| 4111 1111 1111 1111	| Visa       |
+| 5555 5555 5555 4444	| Mastercard |
+| 5454 5454 5454 5454	| Mastercard |
+| 3530 1113 3330 0000	| JCB        |
+| 3566 1111 1111 1113	| JCB        |
+| 3782 8224 6310 005	| Amex       |
 
 These card numbers can be used to create a charge with a specific failure_code. See the Charges API for more information about these failure codes.
 

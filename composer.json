@@ -1,0 +1,6 @@
+{
+    "require": {
+        "league/omnipay": "^3.1",
+        "dilab/omnipay-omise": "^0."
+    }
+}
