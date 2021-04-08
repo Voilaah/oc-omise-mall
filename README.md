@@ -6,10 +6,10 @@ Omise Payment Gateway (Singapore) for October CMS Mall Plugin (provides CC check
 
 You might need to install this package from the root of your October CMS installation.
 
-`
+```
 COMPOSER_MEMORY_LIMIT=-1 composer require league/omnipay:^3
 COMPOSER_MEMORY_LIMIT=-1 composer require dilab/omnipay-omise
-`
+```
 
 https://github.com/Spacebib/omnipay-omise
 
