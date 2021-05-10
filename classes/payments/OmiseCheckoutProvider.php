@@ -230,7 +230,7 @@ class OmiseCheckoutProvider extends OverridePaymentProvider
         $this->setOrder($result->order);
 
         $params = [
-            'paymentIntentReference'    => $intentReference,
+            // 'paymentIntentReference'    => $intentReference,
             'transactionReference'      => $intentReference,
             'amount'                    => $intentAmount,
             // 'card'                      => $intentCard,
@@ -246,9 +246,9 @@ class OmiseCheckoutProvider extends OverridePaymentProvider
         try {
             $response = $this->confirm($gateway, $params);
 
-            // trace_log('FINAL RESPONSE');
-            // $data = (array)$response->getData();
-            // trace_log($data);
+trace_log('=== CONFIRM RESPONSE');
+$data = (array)$response->getData();
+trace_log($data);
 
         } catch (Throwable $e) {
             return $result->fail([], $e);
@@ -266,8 +266,8 @@ class OmiseCheckoutProvider extends OverridePaymentProvider
      */
     private function confirm(GatewayInterface $gateway, array $parameters = array())
     {
-        // trace_log("=== CONFIRM parameters");
-        // trace_log($parameters);
+trace_log("=== CONFIRM Request parameters");
+trace_log($parameters);
         return $gateway->completePurchase($parameters)->send();
     }
 
@@ -281,7 +281,8 @@ class OmiseCheckoutProvider extends OverridePaymentProvider
     protected function completeOrder(PaymentResult $result, $response)
     {
         $data = (array)$response->getData();
-
+trace_log('==== FINAL Response');
+trace_log($data);
         $this->order->card_type                = $data['card']['brand'];
         $this->order->card_holder_name         = $data['card']['name'];
         $this->order->credit_card_last4_digits = $data['card']['last_digits'];
@@ -317,8 +318,8 @@ class OmiseCheckoutProvider extends OverridePaymentProvider
             'cardReference'     => $cardReference,
             'description'       => 'Order-' . $this->order->id,
         ];
-// trace_log('==== INITIAL Charges');
-// trace_log($params);
+trace_log('==== INITIAL Request Charges');
+trace_log($params);
         return $gateway->purchase($params)->send();
     }
 
@@ -509,6 +510,9 @@ class OmiseCheckoutProvider extends OverridePaymentProvider
     public function changePaymentState($response)
     {
         $responseAll = $response->all();
+trace_log('=== changePaymentState object');
+$object = (array)$responseAll['object'];
+trace_log($object);
 
         $order = Order::where('payment_transaction_id', $responseAll['object']['id'])->firstOrFail();
 
