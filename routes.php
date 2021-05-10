@@ -4,7 +4,7 @@ use Illuminate\Http\Request;
 use Voilaah\OmiseMall\Classes\Payments\OmisePaynowProvider;
 use Voilaah\OmiseMall\Classes\Payments\OmiseCheckoutProvider;
 
-Route::post('/omise-checkout', function (Request $request) {
+Route::get('/omise-checkout', function (Request $request) {
 
     $omiseCheckout = new OmiseCheckoutProvider;
 
@@ -13,7 +13,7 @@ Route::post('/omise-checkout', function (Request $request) {
     return exit();
 });
 
-Route::post('/omise-paynow', function (Request $request) {
+Route::get('/omise-paynow', function (Request $request) {
 
     $omiseCheckout = new OmisePaynowProvider;
 
