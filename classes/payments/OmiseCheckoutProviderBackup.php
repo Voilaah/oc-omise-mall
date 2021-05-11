@@ -3,12 +3,8 @@
 use Lang;
 use Request;
 use Session;
-use Input;
-use OmiseCard;
 use Throwable;
 use Validator;
-use OmiseCharge;
-use OmiseCustomer;
 use Omnipay\Omnipay;
 use ValidationException;
 use OFFLINE\Mall\Models\Order;
@@ -17,19 +13,8 @@ use Omnipay\Common\GatewayInterface;
 use OFFLINE\Mall\Models\CustomerPaymentMethod;
 use OFFLINE\Mall\Models\PaymentGatewaySettings;
 use OFFLINE\Mall\Classes\Payments\PaymentResult;
-use Voilaah\OmiseMall\Classes\Payments\OmiseHelper;
 
-/**
- * Testing cards:
- * Success:
- * - 4111 1111 1111 1111
- * - 4242 4242 4242 4242
- * - 5454 5454 5454 5454
- * Failed:
- * - 4111 1111 1115 0002
- * - 4111 1111 1114 0011
- */
-class OmiseCheckoutProvider extends OverridePaymentProvider
+class OmiseCheckoutProviderBackup extends OverridePaymentProvider
 {
     /**
      * The order that is being paid.
@@ -77,12 +62,11 @@ class OmiseCheckoutProvider extends OverridePaymentProvider
             return true;
         }
 
+        // tokn_test_5m5y176alhhgv27jqc8
         $rules = [
             // 'token' => 'required|size:28|regex:/tok_[0-9a-zA-z]{24}/',
             'token' => 'required',
         ];
-        $this->last_digits = substr(Input::get('omise_card_number'), -4);
-
 
         $validation = Validator::make($this->data, $rules);
         if ($validation->fails()) {
@@ -113,37 +97,26 @@ class OmiseCheckoutProvider extends OverridePaymentProvider
 
             $customer = $this->order->customer;
             $isFirstCheckout = false;
-            $customerReference = null;
-            $cardReference = null;
 
             // The checkout uses an existing payment method. The customer and
             // card references can be fetched from there.
             if ($useCustomerPaymentMethod) {
-// trace_log('3. useCustomerPaymentMethod branch...');
+trace_log('3. useCustomerPaymentMethod branch...');
                 $customerReference = $this->order->customer_payment_method->data['omise_customer_id'];
                 $cardReference     = $this->order->customer_payment_method->data['omise_card_id'];
             } elseif ($customer->omise_customer_id) {
-// trace_log('2. existing omise customer branch...');
+trace_log('2. existing omise customer branch...');
                 // If the customer uses a new payment method but is already registered
                 // on Omise, just create the new card.
+                $response = $this->createCard($customer, null, $gateway);
+                $responseData = $response->getData();
 
-                /**
-                 * not needed anymore as we charge directly from
-                 * the token id
-                 */
-                // $response = $this->createCard($customer, null, $gateway);
+                if (!$response->isSuccessful()) {
+                    return $result->fail((array)$response->getData(), $response);
+                }
 
-
-                // if (!OmiseHelper::isSuccessful($response)) {
-                //     return $result->fail((array)$response, $response);
-                // }
-
-                /**
-                 * not needed anymore as we charge directly from
-                 * the token id
-                 */
-                // $customerReference = OmiseHelper::getCustomerReference($response);
-                // $cardReference     = OmiseHelper::getCardReference($response, $this->last_digits);
+                $customerReference = $this->getCustomerReference($response);
+                $cardReference     = $response->getCardReference();
 
 //   trace_log('Supposedly successfully added new card ' . $this->data['token'] . ' to existing customer ' . $customerReference);
                 // $customerReference = $customer->omise_customer_id;
@@ -152,37 +125,35 @@ class OmiseCheckoutProvider extends OverridePaymentProvider
                 // If this is the first checkout for this customer we have to register
                 // the customer and a card on Omise.
 
-// trace_log('1. first time user and card branch...');
+trace_log('1. first time user and card branch...');
                 $response = $this->createCustomer($customer, $gateway);
-
-                // if (!OmiseHelper::isSuccessful($response)) {
-                //     return $result->fail((array)OmiseHelper::getData($response), $response);
-                // }
-
-                $customerReference = OmiseHelper::getCustomerReference($response);
-                $cardReference     = OmiseHelper::getCardReference($response, null); //$response->getCardReference();
+                if (!$response->isSuccessful()) {
+                    return $result->fail((array)$response->getData(), $response);
+                }
+                $customerReference = $this->getCustomerReference($response);
+                $cardReference     = $response->getCardReference();
 
                 $isFirstCheckout = true;
             }
 
-            // if ($isFirstCheckout === false) {
-            //     // Update the customer's data to reflect the order's data.
-            //     $response = $this->updateCustomer($gateway, $customerReference, $customer);
-            //     if (!$response->isSuccessful()) {
-            //         return $result->fail((array)OmiseHelper::getData($response), $response);
-            //     }
-            // }
-
+            if ($isFirstCheckout === false) {
+                // Update the customer's data to reflect the order's data.
+                $response = $this->updateCustomer($gateway, $customerReference, $customer);
+                if (!$response->isSuccessful()) {
+                    return $result->fail((array)$response->getData(), $response);
+                }
+            }
 
             $response = $this->charge($gateway, $customerReference, $cardReference);
+
 
         } catch (Throwable $e) {
             return $result->fail([], $e);
         }
-trace_log('== CHARGE RESPONSE');
-trace_log($response);
 
-        $transactionReference = OmiseHelper::getTransactionReference($response);
+        $data = (array)$response->getData();
+
+        $transactionReference = $this->getTransactionReference($response);
 
         trace_log('successfully charged customer:' . $customerReference . ' with card:' . $cardReference . ', transactionReference:' . $transactionReference);
 
@@ -190,41 +161,46 @@ trace_log($response);
         $this->order->save();
 
         // Everything went OK, no 3DS required.
-        if (OmiseHelper::isSuccessful($response)) {
+        if ($response->isSuccessful()) {
             return $this->completeOrder($result, $response);
         }
 
-        if (OmiseHelper::isFailed($response)) {
-            $dataLog = [];
-            $dataLog['failure_code'] = $response->offsetGet('failure_code');
-            $dataLog['failure_message'] = $response->offsetGet('failure_message');
-            $dataLog['msg'] = $response->offsetGet('failure_message');
-            $dataResponse = OmiseHelper::buildResponse($response);
-            return $result->fail((array)$dataLog, $dataResponse);
+        if (!$useCustomerPaymentMethod) {
+            $this->createCustomerPaymentMethod($customerReference, $cardReference, $data);
         }
 
-        // if (!$useCustomerPaymentMethod) {
-        //     $this->createCustomerPaymentMethod($customerReference, $cardReference, $response);
-        // }
+        // trace_log("===response");
+        // trace_log($data['card']);
+        // trace_log($data);
 
         // 3DS authentication is required, redirect to Omise.
-        if (OmiseHelper::isPending($response)) {
+        if ($response->isPending()) {
             Session::put('mall.payment.callback', self::class);
-            Session::put('mall.omise.paymentIntentReference', $response->offsetGet('id'));
-            // Session::put('mall.omise.paymentIntentAmount', $response->offsetGet('amount'));
-            Session::put('mall.omise.paymentIntentAmount', $this->order->total_in_currency*100);
-            Session::put('mall.omise.paymentIntentCurrency', $response->offsetGet('currency'));
+            Session::put('mall.omise.paymentIntentReference', $data['id']);
+            // Session::put('mall.omise.paymentIntentAmount', $data['amount']);
+            Session::put('mall.omise.paymentIntentAmount', $this->order->total_in_currency);
+            Session::put('mall.omise.paymentIntentCurrency', $data['currency']);
             Session::put('mall.omise.paymentIntentCard', $cardReference);
-            Session::put('mall.omise.paymentIntentCustomer', $response->offsetGet('customer'));
+            Session::put('mall.omise.paymentIntentCustomer', $data['customer']);
             Session::put('mall.omise.paymentIntentOrderId', $this->order->id);
-            Session::put('mall.omise.paymentIntentReturnUrl', $response->offsetGet('return_uri'));
+            Session::put('mall.omise.paymentIntentReturnUrl', $data['return_uri']);
 
-            return $result->redirect(OmiseHelper::getAuthorizeUrl($response));
+            return $result->redirect($this->getAuthorizeUrl($response));
         }
 
         // Something went wrong! :(
-        return $result->fail((array)$response, $response);
+        return $result->fail((array)$response->getData(), $response);
 
+    }
+
+    /**
+     * return Omise Authorize 3DS URL (will be a bank url)
+     */
+    protected function getAuthorizeUrl($response)
+    {
+        $data = (array)$response->getData();
+        if (isset($data['authorize_uri']))
+            return $data['authorize_uri'];
     }
 
 
@@ -258,37 +234,31 @@ trace_log($response);
 
         $params = [
             // 'paymentIntentReference'    => $intentReference,
-            // 'transactionReference'      => $intentReference,
-            'transaction'               => $intentReference,
+            'transactionReference'      => $intentReference,
             'amount'                    => $intentAmount,
             // 'card'                      => $intentCard,
-            // 'cardReference'             => $intentCard,
-            'customer'                  => $intentCustomer,
-            // 'customerReference'         => $intentCustomer,
+            'cardReference'             => $intentCard,
+            // 'customer'                  => $intentCustomer,
+            'customerReference'         => $intentCustomer,
             'currency'                  => $intentCurrency,
             'description'               => 'Order-'.$intentOrderId,
-            // 'returnUrl'                 => $intentReturnUrl,
+            'returnUrl'                 => $intentReturnUrl,
             'return_uri'                => $intentReturnUrl,
         ];
 
         try {
             $response = $this->confirm($gateway, $params);
 
-trace_log('=== AFTER COMPLETE PURCHASE');
-trace_log($response);
-
+trace_log('=== CONFIRM RESPONSE');
+$data = (array)$response->getData();
+trace_log($data);
 
         } catch (Throwable $e) {
             return $result->fail([], $e);
         }
 
-        if ( ! OmiseHelper::isSuccessful($response)) {
-            $dataLog = [];
-            $dataLog['failure_code'] = $response->offsetGet('failure_code');
-            $dataLog['failure_message'] = $response->offsetGet('failure_message');
-            $dataLog['msg'] = $response->offsetGet('failure_message');
-            $dataResponse = OmiseHelper::buildResponse($response);
-            return $result->fail((array)$dataLog, $dataResponse);
+        if ( ! $response->isSuccessful()) {
+            return $result->fail((array)$response->getData(), $response);
         }
 
         return $this->completeOrder($result, $response);
@@ -301,8 +271,6 @@ trace_log($response);
     {
 trace_log("=== CONFIRM Request parameters");
 trace_log($parameters);
-        return OmiseCharge::retrieve($parameters['transaction']);
-
         return $gateway->completePurchase($parameters)->send();
     }
 
@@ -315,21 +283,17 @@ trace_log($parameters);
      */
     protected function completeOrder(PaymentResult $result, $response)
     {
-        // $data = (array)OmiseHelper::getData($response);
-// trace_log('==== FINAL Response');
-// trace_log($response);
-        $this->order->card_type                = $response->offsetGet('card')['brand'];
-        $this->order->card_holder_name         = $response->offsetGet('card')['name'];
-        $this->order->credit_card_last4_digits = $response->offsetGet('card')['last_digits'];
+        $data = (array)$response->getData();
+trace_log('==== FINAL Response');
+trace_log($data);
+        $this->order->card_type                = $data['card']['brand'];
+        $this->order->card_holder_name         = $data['card']['name'];
+        $this->order->credit_card_last4_digits = $data['card']['last_digits'];
 
-        $this->order->customer->omise_customer_id = $response->offsetGet('customer');
+        $this->order->customer->omise_customer_id = $data['customer'];
         $this->order->customer->save();
 
-        $dataLog = [];
-        $dataLog['transaction'] = $response->offsetGet('id');
-        $dataLog['card'] = $response->offsetGet('card')['id'];
-
-        return $result->success($dataLog, $response);
+        return $result->success($data, $response);
     }
 
 
@@ -347,25 +311,58 @@ trace_log($parameters);
     protected function charge(GatewayInterface $gateway, $customerReference, $cardReference)
     {
         $params = [
-            'amount'            => $this->order->total_in_currency * 100,
+            'amount'            => $this->order->total_in_currency,
             'currency'          => $this->order->currency['code'],
-            // 'returnUrl'         => $this->returnUrl(),
+            'returnUrl'         => $this->returnUrl(),
             'return_uri'        => $this->returnUrl(),
-            // 'cancelUrl'         => $this->cancelUrl(),
+            'cancelUrl'         => $this->cancelUrl(),
             'cancel_uri'         => $this->cancelUrl(),
-            // 'customer' => $customerReference,
-            // 'card'     => $cardReference,
-            'card'     =>                 $this->data['token'],
-            // 'cardReference'     => $cardReference,
+            'customerReference' => $customerReference,
+            'cardReference'     => $cardReference,
             'description'       => 'Order-' . $this->order->id,
         ];
-// trace_log('==== INITIAL Request Charges');
-// trace_log($params);
-        return OmiseCharge::create($params);
-
+trace_log('==== INITIAL Request Charges');
+trace_log($params);
         return $gateway->purchase($params)->send();
     }
 
+
+    /**
+     * Should be implemented in the Omnipay Omise
+     * */
+    protected function getCustomerReference($response)
+    {
+        $data = (array)$response->getData();
+        if (isset($data['object']) && $data['object'] === 'customer') {
+            return $data['id'];
+        }
+
+        return null;
+    }
+
+    /**
+     * Override the current Omnipay Omise code
+     * */
+    protected function getTransactionReference($response)
+    {
+        $data = (array)$response->getData();
+        if (isset($data['object'])
+            && 'charge' === $data['object']
+            && isset($data['id'])
+        ) {
+            return $data['id'];
+        }
+
+        $hasTransactionObjects = ['refund'];
+        if (isset($data['object'])
+            && in_array($data['object'], $hasTransactionObjects, true)
+            && isset($data['id'])
+        ) {
+            return $data['id'];
+        }
+
+        return null; //parent::getTransactionReference();
+    }
 
 
     /**
@@ -375,15 +372,10 @@ trace_log($parameters);
      */
     protected function getGateway()
     {
-        $public_key = $this->isTestMode() ? PaymentGatewaySettings::get('test_public_key') : PaymentGatewaySettings::get('public_key') ;
-        $secret_key = $this->isTestMode() ? PaymentGatewaySettings::get('test_secret_key') : PaymentGatewaySettings::get('secret_key') ;
-
-// trace_log('=== Omise keys:' . $public_key . ':' . decrypt($secret_key));
-
-        define('OMISE_PUBLIC_KEY', $public_key);
-        define('OMISE_SECRET_KEY', decrypt($secret_key));
-
+        // $gateway = Omnipay::create('Omise');
         $gateway = Omnipay::create('\Omnipay\Omise\Gateway'); // CyberSource_Hosted
+
+        $secret_key = $this->isTestMode() ? PaymentGatewaySettings::get('test_secret_key') : PaymentGatewaySettings::get('secret_key') ;
 
         $gateway->setApiKey(decrypt($secret_key));
 
@@ -404,29 +396,25 @@ trace_log($parameters);
         $customerRef = $customerReference ?? $customer->omise_customer_id;
 
         $params = [
-            // 'customerReference' => $customerRef,
-            'card'                  => $this->data['token'] ?? null,
-            // 'cardReference'     => $this->data['token'] ?? null,
+            'customerReference' => $customerRef,
+            // 'card'              => $this->data['token'] ?? null,
+            'cardReference'     => $this->data['token'] ?? null,
             // 'source'            => $this->data['token'] ?? false,
             // 'name'              => $customer->name,
         ];
         if ($customer->omise_customer_id) {
             // $response = $this->updateCustomer($gateway, $customerRef, $customer);
             // update existing customer with a new card
-            $customer = OmiseCustomer::retrieve($customerRef);
-            return $customer->update($params);
-
             return $gateway->updateCustomer($params)->send();
         } else {
             // new customer new card
-            return OmiseCard::create($params);
             return $gateway->createCard($params)->send();
         }
     }
 
 
     /**
-     * Create a new customer and his first card
+     * Create a new customer.
      *
      * @param                  $customer
      * @param GatewayInterface $gateway
@@ -440,27 +428,6 @@ trace_log($parameters);
             $customer->user->email,
             $customer->id
         );
-
-        $params = [
-            'description'       => $description,
-            // 'cardReference'     => $this->data['token'] ?? false,
-            'email'             => $this->order->customer->user->email,
-            // 'card'              => $this->data['token'] ?? false,
-            'metadata'    => [
-                'name'          => $customer->name,
-                'shipping'      => $this->getShippingInformation($customer),
-            ],
-        ];
-
-// trace_log('=== CREATE CUSTOMER');
-// trace_log($params);
-
-        $customer = OmiseCustomer::create($params);
-// trace_log('=== RETURNED CUSTOMER');
-// trace_log($customer);
-
-        return $customer;
-
 
         return $gateway->createCustomer([
             'description' => $description,
@@ -507,9 +474,8 @@ trace_log($parameters);
      * @param       $cardReference
      * @param array $data
      */
-    protected function createCustomerPaymentMethod($customerReference, $cardReference, $response)
+    protected function createCustomerPaymentMethod($customerReference, $cardReference, array $data)
     {
-        trace_log('=== createCustomerPaymentMethod...');
         CustomerPaymentMethod::create([
             'name'              => trans('offline.mall::lang.order.credit_card'),
             'customer_id'       => $this->order->customer->id,
@@ -517,11 +483,10 @@ trace_log($parameters);
             'data'              => [
                 'omise_customer_id' => $customerReference,
                 'omise_card_id'     => $cardReference,
-                'omise_card_brand'  => $response->offsetGet('card')['brand'],
-                'omise_card_last4'  => $response->offsetGet('card')['last_digits'],
+                'omise_card_brand'  => $data['card']['brand'],
+                'omise_card_last4'  => $data['card']['last_digits'],
             ],
         ]);
-
     }
 
     /**
@@ -580,7 +545,7 @@ trace_log($parameters);
         trace_log('=== handleWebhookRequest related to ' . $responseAll['key'] . ':' . $responseAll['id'] . ' and ' . $data['object'] . ':' . $data['id'] );
         return;
 
-        $transactionReference = OmiseHelper::getTransactionReference($response);
+        $transactionReference = $this->getTransactionReference($response);
 
 
         $order = Order::where('payment_transaction_id', $transactionReference)->firstOrFail();
@@ -597,7 +562,7 @@ trace_log($parameters);
             return $result->fail([], $e);
         }
 
-        $data = (array)OmiseHelper::getData($response);
+        $data = (array)$response->getData();
 
         switch ($responseAll['event']) {
             case 'payment.succeeded':

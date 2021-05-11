@@ -4,6 +4,7 @@
     "description": "Omise Payment integration for OC Mall plugin",
     "require": {
         "composer/installers": "~1.0",
-        "dilab/omnipay-omise": "dev-master"
+        "dilab/omnipay-omise": "dev-master",
+        "omise/omise-php": "dev-master"
     }
 }
