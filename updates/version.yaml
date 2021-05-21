@@ -7,3 +7,5 @@
     - 'update migration removal'
 1.0.4:
     - 'fix release'
+1.0.5:
+    - 'tidy up code'

@@ -179,12 +179,12 @@ class OmiseCheckoutProvider extends OverridePaymentProvider
         } catch (Throwable $e) {
             return $result->fail([], $e);
         }
-trace_log('== CHARGE RESPONSE');
-trace_log($response);
+// trace_log('== CHARGE RESPONSE');
+// trace_log($response);
 
         $transactionReference = OmiseHelper::getTransactionReference($response);
 
-        trace_log('successfully charged customer:' . $customerReference . ' with card:' . $cardReference . ', transactionReference:' . $transactionReference);
+        // trace_log('successfully charged customer:' . $customerReference . ' with card:' . $cardReference . ', transactionReference:' . $transactionReference);
 
         $this->order->payment_transaction_id = $transactionReference;
         $this->order->save();
@@ -274,8 +274,8 @@ trace_log($response);
         try {
             $response = $this->confirm($gateway, $params);
 
-trace_log('=== AFTER COMPLETE PURCHASE');
-trace_log($response);
+// trace_log('=== AFTER COMPLETE PURCHASE');
+// trace_log($response);
 
 
         } catch (Throwable $e) {
@@ -299,8 +299,8 @@ trace_log($response);
      */
     private function confirm(GatewayInterface $gateway, array $parameters = array())
     {
-trace_log("=== CONFIRM Request parameters");
-trace_log($parameters);
+// trace_log("=== CONFIRM Request parameters");
+// trace_log($parameters);
         return OmiseCharge::retrieve($parameters['transaction']);
 
         return $gateway->completePurchase($parameters)->send();
@@ -487,7 +487,7 @@ trace_log($parameters);
         $customerReference,
         $customer
     ) {
-        trace_log('ATTEMPT PATCH Customer ' . $customerReference);
+        // trace_log('ATTEMPT PATCH Customer ' . $customerReference);
         return $gateway->updateCustomer([
             'description' => 'TEST PATCH',
             'customerReference' => $customerReference,
@@ -509,7 +509,7 @@ trace_log($parameters);
      */
     protected function createCustomerPaymentMethod($customerReference, $cardReference, $response)
     {
-        trace_log('=== createCustomerPaymentMethod...');
+        // trace_log('=== createCustomerPaymentMethod...');
         CustomerPaymentMethod::create([
             'name'              => trans('offline.mall::lang.order.credit_card'),
             'customer_id'       => $this->order->customer->id,
@@ -577,7 +577,7 @@ trace_log($parameters);
         $responseAll = $response->all();
         $data = (array)$responseAll['data'];
         // trace_log($data);
-        trace_log('=== handleWebhookRequest related to ' . $responseAll['key'] . ':' . $responseAll['id'] . ' and ' . $data['object'] . ':' . $data['id'] );
+        // trace_log('=== handleWebhookRequest related to ' . $responseAll['key'] . ':' . $responseAll['id'] . ' and ' . $data['object'] . ':' . $data['id'] );
         return;
 
         $transactionReference = OmiseHelper::getTransactionReference($response);
